@@ -76,8 +76,8 @@ class gptModel(nn.Module):
         tok = self.token_embedding_table(X)  # B, T, C
         pos = self.positional_embedding_table(torch.arange(T, device=device))  # B, T, C
         X = tok + pos  # B, T, C
-        for head in self.heads:
-            X = head(X)  # B, T, C
+        for multi_head in self.heads:
+            X = multi_head(X)  # B, T, C
         X = self.head_lm(X)  # B, T, vocab_size
 
         logits = X
