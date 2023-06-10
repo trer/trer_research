@@ -23,9 +23,9 @@ class Head(nn.Module):
 
     def __init__(self, head_size, embedding_size, block_size, device):
         super().__init__()
-        self.key = nn.Linear(embedding_size, head_size, bias=False).to(device)
-        self.query = nn.Linear(embedding_size, head_size, bias=False).to(device)
-        self.value = nn.Linear(embedding_size, head_size, bias=False).to(device)
+        self.key = nn.Linear(embedding_size, head_size, bias=False)
+        self.query = nn.Linear(embedding_size, head_size, bias=False)
+        self.value = nn.Linear(embedding_size, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
 
     def forward(self, X):
@@ -45,22 +45,28 @@ class MultiHead(nn.Module):
     def __init__(self, embedding_size, n_heads, block_size, dropout, device) -> None:
         super().__init__()
         head_size = int(embedding_size / n_heads)
-        self.heads = nn.ModuleList([Head(head_size, embedding_size, block_size, device).to(device) for _ in range(n_heads)])
+        self.heads = nn.ModuleList([Head(head_size, embedding_size, block_size, device) for _ in range(n_heads)])
         self.ffwds = FeedForward(embedding_size, dropout)
-        self.norm = nn.LayerNorm(embedding_size)
+        self.norm1 = nn.LayerNorm(embedding_size)
+        self.linear = nn.Linear(embedding_size, embedding_size)
+        self.norm2 = nn.LayerNorm(embedding_size)
+        self.dropout =nn.Dropout(dropout)
+
 
     def forward(self, X):
+        X = self.norm1(X)
         X_heads = X
-        X_heads = torch.concat([head(X) for head in self.heads], dim=-1)
-        X = self.norm(X_heads)
-        X += self.ffwds(X)
-        X = self.norm(X_heads)
+        X_heads = X_heads + torch.concat([head(X) for head in self.heads], dim=-1)
+        X = self.linear(X_heads)
+        X = self.dropout(X)
+        X = self.norm2(X)
+        X = X + self.ffwds(X)
         return X
 
 
 class gptModel(nn.Module):
 
-    def __init__(self, vocab_size, batch_size, block_size, embedding_size, n_heads, dropout, device):
+    def __init__(self, vocab_size, batch_size, block_size, embedding_size, n_heads, n_multiheads, dropout, device):
         super().__init__()
         self.batch_size = batch_size
         self.block_size = block_size
@@ -68,36 +74,26 @@ class gptModel(nn.Module):
         self.device = device
         self.token_embedding_table = nn.Embedding(vocab_size, embedding_size)
         self.positional_embedding_table = nn.Embedding(block_size, embedding_size)
-        self.heads = nn.ModuleList([MultiHead(embedding_size, n_heads, block_size, dropout, device).to(device) for _ in range(4)])
+        self.heads = nn.Sequential(*[MultiHead(embedding_size, n_heads, block_size, dropout, device) for _ in range(n_multiheads)])
         self.head_lm = nn.Linear(embedding_size, vocab_size)
 
-    def forward(self, X, Y=None, device='cpu'):
+    def forward(self, X, Y=None):
         B, T = X.shape
         tok = self.token_embedding_table(X)  # B, T, C
-        pos = self.positional_embedding_table(torch.arange(T, device=device))  # B, T, C
+        pos = self.positional_embedding_table(torch.arange(T, device=self.device))  # B, T, C
         X = tok + pos  # B, T, C
-        for multi_head in self.heads:
-            X = multi_head(X)  # B, T, C
+        X =  self.heads(X)
+            
         X = self.head_lm(X)  # B, T, vocab_size
 
-        logits = X
-
-        if Y is None:
-            loss = None
-        else:
-            B, T, C = logits.shape
-            logits = logits.view(B * T, C)
-            Y = Y.view(B * T)
-            loss = F.cross_entropy(logits, Y)
-
-        return logits, loss
+        return X
 
     def generate(self, X, max_len=100):
         # block = X if len(X) < block_size else X[-block_size:]
         # B = 1
         for _ in range(max_len):
             X_forward = X[:, -self.block_size:]
-            logits, loss = self.forward(X_forward)
+            logits = self.forward(X_forward)
             logits = logits[:, -1, :]  # B, (last_char), probabilities
             probs = F.softmax(logits, dim=-1) # B, probabilities (1, probabilities)
             next = torch.multinomial(probs, num_samples=1)

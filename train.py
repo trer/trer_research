@@ -1,16 +1,18 @@
 import os
 
+import pandas as pd
 import torch
-from datasets import load_dataset
+from torch.nn import functional as F
 from model import gptModel
 from my_utils import get_batch, estimate_loss, load_checkpoint
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 
-dataset = load_dataset("tiny_shakespeare")
+# dataset = load_dataset("tiny_shakespeare")
+dataset = pd.read_csv('tiny_shakespeare.csv')
 
-data = dataset['train']['text'][0]
+data = dataset['train'][0]
 
 d = sorted(list(set(data)))
 chtoi = {chr: i for i, chr in enumerate(d)}
@@ -20,24 +22,26 @@ encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
 
 vocab_size = len(d)  # This is about 50 000 in GPT
-large = False
+large = True
 if large:
-    block_size = 32  # This is around 2000 in GPT
-    batch_size = 4
-    embedding_size = 128
-    n_heads = 4
+    block_size = 256  # This is around 2000 in GPT
+    batch_size = 1
+    embedding_size = 384
+    n_heads = 6
+    n_multiheads = 6
     data = torch.tensor(encode(data), device=device)
     dataset_size = len(data)
     lr = 3e-4
-    eval_iters = 100
+    eval_iters = 1
     epochs = 10000
-    dropout = 0.1
+    dropout = 0.2
     filename = 'model_large.pt'
 else:
     block_size = 8  # This is around 2000 in GPT
-    batch_size = 32
+    batch_size = 1
     embedding_size = 16
     n_heads = 4
+    n_multiheads = 1
     data = torch.tensor(encode(data), device=device)
     dataset_size = len(data)
     lr = 3e-4
@@ -45,13 +49,15 @@ else:
     epochs = 10000
     dropout = 0.1
     filename = 'model.pt'
+    if device =='cuda':
+        torch.cuda.set_per_process_memory_fraction(0.6)
 # ----------------
 
 
 torch.manual_seed(123)
 
-model = gptModel(vocab_size, batch_size, block_size, embedding_size, n_heads, dropout, device)
-if device == 'gpu':
+model = gptModel(vocab_size, batch_size, block_size, embedding_size, n_heads, n_multiheads, dropout, device)
+if device == 'cuda':
     model.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -59,31 +65,43 @@ prev_loss = 999
 filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
-model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+#model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+
+
 
 loss_est = estimate_loss(model, data, dataset_size)
 print(loss_est)
 
 for epoch in range(epochs):
+    #print('Nora er KUL')
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
-    log, loss = model(x, y)
-
+    logits = model(x, y)
+    #print(torch.cuda.max_memory_allocated())
+    B, T, C = logits.shape
+    logits = logits.view(B * T, C)
+    y = y.view(B * T)
+    loss = F.cross_entropy(logits, y)
+    #print(torch.cuda.max_memory_allocated())
+    optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
+    #print(torch.cuda.max_memory_allocated())
     if epoch % 1000 == 0:
         print("epoch", epoch)
         loss_est = estimate_loss(model, data, dataset_size)
-
         if loss_est['val'].item() < prev_loss:
             state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
                      'optimizer': optimizer.state_dict(), 'loss_est': loss_est, }
             torch.save(state, filepath)
             prev_loss = loss_est['val'].item()
+            del state
             print('new best loss found saving model.', loss_est)
         else:
             print('loss is not better than previous best', loss_est)
-
-test = torch.tensor(encode(dataset['test']['text'][0][:block_size]))
+        del loss_est
+        print(torch.cuda.max_memory_allocated())   
+    del x, y, logits, loss, B, T, C
+test = torch.tensor(encode(dataset['test'][0][:block_size]))
 test = test.reshape(1, test.shape[0])
 test = test.to(device)
 print(decode(model.generate(test, 2000)[0].tolist()))
