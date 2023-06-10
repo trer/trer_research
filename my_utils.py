@@ -39,7 +39,7 @@ def estimate_loss(model, data, dataset_size, eval_iters=100):
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             X, Y = get_batch(data, model.device, dataset_size, model.block_size, model.block_size)
-            logits = model(X, Y)
+            logits = model(X)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
             Y = Y.view(B * T)

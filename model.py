@@ -33,7 +33,7 @@ class Head(nn.Module):
         B, T, C = X.shape
         k = self.key(X)  # B, T, H
         q = self.query(X)  # B, T, H
-        weights = q @ k.transpose(-2, -1) * C ** -0.5  # B, T, T
+        weights = q @ k.transpose(-2, -1) * k.shape[-1] ** -0.5  # B, T, T
         weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf'))  # B, T, T
         weights = F.softmax(weights, dim=1)  # B, T, T
         weights = self.dropout(weights)
