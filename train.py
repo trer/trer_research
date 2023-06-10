@@ -25,14 +25,14 @@ vocab_size = len(d)  # This is about 50 000 in GPT
 large = True
 if large:
     block_size = 256  # This is around 2000 in GPT
-    batch_size = 1
+    batch_size = 64
     embedding_size = 384
     n_heads = 6
     n_multiheads = 6
     data = torch.tensor(encode(data), device=device)
     dataset_size = len(data)
     lr = 3e-4
-    eval_iters = 1
+    eval_iters = 200
     epochs = 10000
     dropout = 0.2
     filename = 'model_large.pt'

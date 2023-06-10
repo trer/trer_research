@@ -21,12 +21,13 @@ class FeedForward(nn.Module):
 
 class Head(nn.Module):
 
-    def __init__(self, head_size, embedding_size, block_size, device):
+    def __init__(self, head_size, embedding_size, block_size, dropout):
         super().__init__()
         self.key = nn.Linear(embedding_size, head_size, bias=False)
         self.query = nn.Linear(embedding_size, head_size, bias=False)
         self.value = nn.Linear(embedding_size, head_size, bias=False)
         self.register_buffer('tril', torch.tril(torch.ones(block_size, block_size)))
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, X):
         B, T, C = X.shape
@@ -35,6 +36,7 @@ class Head(nn.Module):
         weights = q @ k.transpose(-2, -1) * C ** -0.5  # B, T, T
         weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf'))  # B, T, T
         weights = F.softmax(weights, dim=1)  # B, T, T
+        weights = self.dropout(weights)
 
         v = self.value(X)  # B, T, C
         return weights @ v  # B, T, C
@@ -42,10 +44,10 @@ class Head(nn.Module):
 
 class MultiHead(nn.Module):
 
-    def __init__(self, embedding_size, n_heads, block_size, dropout, device) -> None:
+    def __init__(self, embedding_size, n_heads, block_size, dropout) -> None:
         super().__init__()
         head_size = int(embedding_size / n_heads)
-        self.heads = nn.ModuleList([Head(head_size, embedding_size, block_size, device) for _ in range(n_heads)])
+        self.heads = nn.ModuleList([Head(head_size, embedding_size, block_size, dropout) for _ in range(n_heads)])
         self.ffwds = FeedForward(embedding_size, dropout)
         self.norm1 = nn.LayerNorm(embedding_size)
         self.linear = nn.Linear(embedding_size, embedding_size)
@@ -55,10 +57,10 @@ class MultiHead(nn.Module):
 
     def forward(self, X):
         X = self.norm1(X)
-        X_heads = X
-        X_heads = X_heads + torch.concat([head(X) for head in self.heads], dim=-1)
-        X = self.linear(X_heads)
-        X = self.dropout(X)
+        X_heads = torch.concat([head(X) for head in self.heads], dim=-1)
+        X_heads = self.linear(X_heads)
+        X_heads = self.dropout(X_heads)
+        X = X + X_heads
         X = self.norm2(X)
         X = X + self.ffwds(X)
         return X
@@ -74,16 +76,28 @@ class gptModel(nn.Module):
         self.device = device
         self.token_embedding_table = nn.Embedding(vocab_size, embedding_size)
         self.positional_embedding_table = nn.Embedding(block_size, embedding_size)
-        self.heads = nn.Sequential(*[MultiHead(embedding_size, n_heads, block_size, dropout, device) for _ in range(n_multiheads)])
+        self.heads = nn.Sequential(*[MultiHead(embedding_size, n_heads, block_size, dropout) for _ in range(n_multiheads)])
+        self.norm = nn.LayerNorm(embedding_size)
         self.head_lm = nn.Linear(embedding_size, vocab_size)
+        # better init, not covered in the original GPT video, but important, will cover in followup video
+        self.apply(self._init_weights)
 
-    def forward(self, X, Y=None):
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        
+
+    def forward(self, X):
         B, T = X.shape
         tok = self.token_embedding_table(X)  # B, T, C
         pos = self.positional_embedding_table(torch.arange(T, device=self.device))  # B, T, C
         X = tok + pos  # B, T, C
-        X =  self.heads(X)
-            
+        X = self.heads(X)
+        X = self.norm(X)
         X = self.head_lm(X)  # B, T, vocab_size
 
         return X
