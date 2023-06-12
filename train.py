@@ -58,12 +58,12 @@ model = gptModel(vocab_size, batch_size, block_size, embedding_size, n_heads, n_
 if device == 'cuda':
     model.cuda()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 prev_loss = 999
 filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
-#model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 print(model)
 
@@ -74,7 +74,7 @@ print(loss_est)
 for epoch in range(epochs):
     #print('Nora er KUL')
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
-    logits = model(x, y)
+    logits = model(x)
     #print(torch.cuda.max_memory_allocated())
     B, T, C = logits.shape
     logits = logits.view(B * T, C)
