@@ -33,7 +33,7 @@ class Head(nn.Module):
         B, T, C = X.shape
         k = self.key(X)  # B, T, H
         q = self.query(X)  # B, T, H
-        weights = q @ k.transpose(-2, -1) * C ** -0.5  # B, T, T
+        weights = q @ k.transpose(-2, -1) * k.shape[-1] ** -0.5  # B, T, T
         weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf'))  # B, T, T
         weights = F.softmax(weights, dim=1)  # B, T, T
         weights = self.dropout(weights)
@@ -52,17 +52,17 @@ class MultiHead(nn.Module):
         self.norm1 = nn.LayerNorm(embedding_size)
         self.linear = nn.Linear(embedding_size, embedding_size)
         self.norm2 = nn.LayerNorm(embedding_size)
-        self.dropout =nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout)
 
 
     def forward(self, X):
-        X = self.norm1(X)
-        X_heads = torch.concat([head(X) for head in self.heads], dim=-1)
+        X_heads = self.norm1(X)
+        X_heads = torch.concat([head(X_heads) for head in self.heads], dim=-1)
         X_heads = self.linear(X_heads)
         X_heads = self.dropout(X_heads)
         X = X + X_heads
-        X = self.norm2(X)
-        X = X + self.ffwds(X)
+        X_f = self.norm2(X)
+        X = X + self.ffwds(X_f)
         return X
 
 
@@ -89,7 +89,7 @@ class gptModel(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-        
+
 
     def forward(self, X):
         B, T = X.shape

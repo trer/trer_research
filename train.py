@@ -49,8 +49,6 @@ else:
     epochs = 10000
     dropout = 0.1
     filename = 'model.pt'
-    if device =='cuda':
-        torch.cuda.set_per_process_memory_fraction(0.6)
 # ----------------
 
 
@@ -67,6 +65,7 @@ filepath = os.path.join(filepath, filename)
 
 #model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
+print(model)
 
 
 loss_est = estimate_loss(model, data, dataset_size)
