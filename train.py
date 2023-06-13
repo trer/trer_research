@@ -63,7 +63,7 @@ prev_loss = 999
 filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
-model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+#model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 print(model)
 

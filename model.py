@@ -79,7 +79,7 @@ class gptModel(nn.Module):
         self.heads = nn.Sequential(*[MultiHead(embedding_size, n_heads, block_size, dropout) for _ in range(n_multiheads)])
         self.norm = nn.LayerNorm(embedding_size)
         self.head_lm = nn.Linear(embedding_size, vocab_size)
-        # better init, not covered in the original GPT video, but important, will cover in followup video
+    
         self.apply(self._init_weights)
 
     def _init_weights(self, module):
