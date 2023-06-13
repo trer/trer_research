@@ -100,7 +100,8 @@ for epoch in range(epochs):
         del loss_est
         print(torch.cuda.max_memory_allocated())   
     del x, y, logits, loss, B, T, C
-test = torch.tensor(encode(dataset['test'][0][:block_size]))
-test = test.reshape(1, test.shape[0])
-test = test.to(device)
+#test = torch.tensor(encode(dataset['test'][0][:block_size]))
+#test = test.reshape(1, test.shape[0])
+#test = test.to(device)
+test = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(model.generate(test, 2000)[0].tolist()))
