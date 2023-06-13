@@ -1,0 +1,3 @@
+[submodule "external/full-br-index"]
+	path = external/full-br-index
+	url = https://github.com/U-Ar/full-br-index.git
