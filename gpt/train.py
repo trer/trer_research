@@ -10,7 +10,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 
 # dataset = load_dataset("tiny_shakespeare")
-dataset = pd.read_csv('tiny_shakespeare.csv')
+dataset = pd.read_csv('../data/tiny_shakespeare.csv')
 
 data = dataset['train'][0]
 
@@ -22,7 +22,7 @@ encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
 
 vocab_size = len(d)  # This is about 50 000 in GPT
-large = True
+large = False
 if large:
     block_size = 256  # This is around 2000 in GPT
     batch_size = 64
@@ -35,7 +35,7 @@ if large:
     eval_iters = 200
     epochs = 10000
     dropout = 0.2
-    filename = 'model_large.pt'
+    filename = 'models/model_large.pt'
 else:
     block_size = 8  # This is around 2000 in GPT
     batch_size = 1
@@ -48,7 +48,7 @@ else:
     eval_iters = 200
     epochs = 10000
     dropout = 0.1
-    filename = 'model.pt'
+    filename = 'models/model.pt'
 # ----------------
 
 
@@ -63,6 +63,7 @@ prev_loss = 999
 filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
+
 #model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 print(model)
@@ -71,7 +72,7 @@ print(model)
 loss_est = estimate_loss(model, data, dataset_size)
 print(loss_est)
 
-for epoch in range(epochs):
+for epoch in range(0):
     #print('Nora er KUL')
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
     logits = model(x)
@@ -104,4 +105,5 @@ for epoch in range(epochs):
 #test = test.reshape(1, test.shape[0])
 #test = test.to(device)
 test = torch.zeros((1, 1), dtype=torch.long, device=device)
-print(decode(model.generate(test, 2000)[0].tolist()))
+with open('../data/output_text.txt', 'w') as file:
+    file.write(decode(model.generate(test, 2000)[0].tolist()))
