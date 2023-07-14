@@ -3,8 +3,9 @@ import os
 import pandas as pd
 import torch
 from torch.nn import functional as F
+
 from model import gptModel
-from my_utils import get_batch, estimate_loss, load_checkpoint
+from my_utils import get_batch, estimate_loss, load_checkpoint, estimate_accuracy
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
@@ -15,11 +16,14 @@ dataset = pd.read_csv('../data/tiny_shakespeare.csv')
 data = dataset['train'][0]
 
 d = sorted(list(set(data)))
+
 chtoi = {chr: i for i, chr in enumerate(d)}
 itoch = {i: chr for i, chr in enumerate(d)}
 
 encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
+
+
 
 vocab_size = len(d)  # This is about 50 000 in GPT
 large = False
@@ -46,7 +50,7 @@ else:
     dataset_size = len(data)
     lr = 3e-4
     eval_iters = 200
-    epochs = 10000
+    epochs = 50000
     dropout = 0.1
     filename = 'models/model.pt'
 # ----------------
@@ -64,7 +68,7 @@ filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
 
-#model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 print(model)
 
@@ -72,20 +76,22 @@ print(model)
 loss_est = estimate_loss(model, data, dataset_size)
 print(loss_est)
 
-for epoch in range(0):
-    #print('Nora er KUL')
+for epoch in range(epochs):
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
+    print("input x")
+    print(x.shape)
+    print(x, decode(x[0].numpy()))
+    print(y, decode(y[0].numpy()))
+
     logits = model(x)
-    #print(torch.cuda.max_memory_allocated())
     B, T, C = logits.shape
     logits = logits.view(B * T, C)
+
     y = y.view(B * T)
     loss = F.cross_entropy(logits, y)
-    #print(torch.cuda.max_memory_allocated())
     optimizer.zero_grad(set_to_none=True)
     loss.backward()
     optimizer.step()
-    #print(torch.cuda.max_memory_allocated())
     if epoch % 1000 == 0:
         print("epoch", epoch)
         loss_est = estimate_loss(model, data, dataset_size)
@@ -99,11 +105,16 @@ for epoch in range(0):
         else:
             print('loss is not better than previous best', loss_est)
         del loss_est
-        print(torch.cuda.max_memory_allocated())   
+        print(torch.cuda.max_memory_allocated())
     del x, y, logits, loss, B, T, C
 #test = torch.tensor(encode(dataset['test'][0][:block_size]))
 #test = test.reshape(1, test.shape[0])
 #test = test.to(device)
+data = dataset['test'][0]
+data = torch.tensor(encode(data), device=device)
+print(data)
+loss_est = estimate_accuracy(model, data, len(data))
+print(loss_est)
 test = torch.zeros((1, 1), dtype=torch.long, device=device)
 with open('../data/output_text.txt', 'w') as file:
     file.write(decode(model.generate(test, 2000)[0].tolist()))
