@@ -22,10 +22,10 @@ encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
 
 vocab_size = len(d)  # This is about 50 000 in GPT
-large = False
+large = True
 if large:
     block_size = 256  # This is around 2000 in GPT
-    batch_size = 64
+    batch_size = 1
     embedding_size = 384
     n_heads = 6
     n_multiheads = 6
@@ -33,7 +33,7 @@ if large:
     dataset_size = len(data)
     lr = 3e-4
     eval_iters = 200
-    epochs = 10000
+    epochs = 0 #100000
     dropout = 0.2
     filename = 'models/model_large.pt'
 else:
@@ -64,22 +64,22 @@ filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
 
-#model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 print(model)
 
 
-loss_est = estimate_loss(model, data, dataset_size)
-print(loss_est)
+# loss_est = estimate_loss(model, data, dataset_size)
+# print(loss_est)
 
-for epoch in range(0):
-    #print('Nora er KUL')
+for epoch in range(epochs):
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
+ 
     logits = model(x)
-    #print(torch.cuda.max_memory_allocated())
     B, T, C = logits.shape
     logits = logits.view(B * T, C)
     y = y.view(B * T)
+    
     loss = F.cross_entropy(logits, y)
     #print(torch.cuda.max_memory_allocated())
     optimizer.zero_grad(set_to_none=True)

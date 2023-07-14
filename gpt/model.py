@@ -103,6 +103,14 @@ class gptModel(nn.Module):
         return X
 
     def generate(self, X, max_len=100):
+        # if len(X) < Block_size fill up X
+        for i in range(max([0, self.block_size - len(X)])):
+            X_forward = X[:, -self.block_size:]
+            logits = self.forward(X_forward)
+            logits = logits[:, i, :]  # B, (last_char), probabilities
+            probs = F.softmax(logits, dim=-1)  # B, probabilities (1, probabilities)
+            next = torch.multinomial(probs, num_samples=1)
+            X = torch.cat((X, next), dim=1)
         # block = X if len(X) < block_size else X[-block_size:]
         # B = 1
         for _ in range(max_len):
