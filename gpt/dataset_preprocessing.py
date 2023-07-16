@@ -5,8 +5,8 @@ import pandas as pd
 from datasets import load_dataset
 import torch
 
-from gpt.model import gptModel
-from gpt.my_utils import load_checkpoint, get_batch
+from model import gptModel
+from my_utils import load_checkpoint, get_batch
 
 dataset = load_dataset("tiny_shakespeare")
 data = dataset['train'][0]['text']
