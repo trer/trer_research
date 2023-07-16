@@ -83,7 +83,7 @@ loss_est = estimate_loss(model, data, dataset_size, gpt_dataset_test)
 print(loss_est)
 
 
-for epoch in range(0):
+for epoch in range(epochs):
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
 
     logits = model(x)

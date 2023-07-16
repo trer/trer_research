@@ -2,14 +2,13 @@ import os
 
 import numpy as np
 import pandas as pd
-from datasets import load_dataset
 import torch
 
-from gpt.model import gptModel
-from gpt.my_utils import load_checkpoint, get_batch
+from model import gptModel
+from my_utils import load_checkpoint, get_batch
 
-dataset = load_dataset("tiny_shakespeare")
-data = dataset['train'][0]['text']
+dataset = pd.read_csv('../data/tiny_shakespeare.csv')
+data = dataset['train'][0]
 d = sorted(list(set(data)))
 chtoi = {chr: i for i, chr in enumerate(d)}
 itoch = {i: chr for i, chr in enumerate(d)}
@@ -24,7 +23,7 @@ decode = lambda i: "".join(itoch[x] for x in i)
 
 vocab_size = len(d)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-large = False
+large = True
 
 if large:
     block_size = 256  # This is around 2000 in GPT
@@ -62,7 +61,7 @@ filepath = os.path.join(filepath, filename)
 
 model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 model.eval()
-data = dataset['test'][0]['text']
+data = dataset['test'][0]
 data = torch.tensor(encode(data), device=device)
 dataset_size = len(data)
 
@@ -112,7 +111,7 @@ with open('../data/tiny_shakespeare_queries.mapped.txt', 'w') as f:
 
             else:
                 tmp[-len(query):] = query
-            tmp = torch.tensor(tmp, dtype=int).view((1, len(tmp)))
+            tmp = torch.tensor(tmp, dtype=int, device=device).view((1, len(tmp)))
 
             out2 = model(tmp)
             out2 = torch.argmax(out2[:, -1, :], -1)
@@ -141,7 +140,7 @@ itoch = {i: chr for i, chr in enumerate(d)}
 
 encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
-
+|
 data_t_int = encode(data_1)
 data_test_int = encode(data['test'][0])
 

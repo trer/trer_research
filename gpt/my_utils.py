@@ -152,14 +152,14 @@ def estimate_accuracy(model, data, dataset_size, dataset_2, eval_iters=100):
                 X, Y = get_batch(data, model.device, dataset_size, model.block_size, 1)
             else:
                 X, Y = next(dataset_2)
-            print(X.shape)
+            # print(X.shape)
             logits = model(X)
             B, T, C = logits.shape
 
             bigidx_X = torch.argmax(logits, -1)
             bigidx_X = bigidx_X.view(B * T)
-            print(logits)
-            print("big indexsss", bigidx_X)
+            # print(logits)
+            # print("big indexsss", bigidx_X)
             Y = Y.view(B * T)
 
             out[split]['correct'] = out[split]['correct'] + torch.sum((bigidx_X == Y))
