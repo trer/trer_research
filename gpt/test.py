@@ -3,7 +3,6 @@ import os
 import numpy as np
 import pandas as pd
 import torch
-from datasets import load_dataset
 from torch.nn import functional as F
 
 from model import gptModel
@@ -23,7 +22,7 @@ decode = lambda i: "".join(itoch[x] for x in i)
 
 vocab_size = len(d)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-large = False
+large = True
 
 if large:
     block_size = 256  # This is around 2000 in GPT
@@ -60,6 +59,9 @@ filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
 model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+if device == 'cuda':
+    model.cuda()
+
 
 encoded_data = encode(data)
 
@@ -109,9 +111,7 @@ for fold in folds:
 
         else:
             tmp[-len(query):] = query
-
-        tmp = torch.tensor(tmp, dtype=int).view((1, len(tmp)))
-        #print(query, tmp)
+        tmp = torch.tensor(tmp, dtype=int, device=device).view((1, len(tmp)))
         out = model(tmp)
 
         out = torch.argmax(out[:, -1, :], -1)
