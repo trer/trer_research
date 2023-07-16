@@ -10,17 +10,15 @@ from torch.utils.data import Dataset
 class GptDataset(Dataset):
     'Characterizes a dataset for PyTorch'
 
-    def __init__(self, dataset_path, block_size, batch_size, d, device):
+    def __init__(self, dataset_path, block_size, batch_size, encode, decode, device):
         'Initialization'
         self.block_size = block_size
         self.batch_size = batch_size
         self.id = 0
         self.device = device
-        chtoi = {chr: i for i, chr in enumerate(d)}
-        itoch = {i: chr for i, chr in enumerate(d)}
 
-        self.encode = lambda s: [chtoi[x] for x in s]
-        self.decode = lambda i: "".join(itoch[x] for x in i)
+        self.encode = encode
+        self.decode = decode
 
         data = []
         for i, line in enumerate(open(dataset_path)):

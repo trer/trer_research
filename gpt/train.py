@@ -1,5 +1,5 @@
 import os
-
+import json
 import pandas as pd
 import torch
 from torch.nn import functional as F
@@ -12,18 +12,36 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 
 # dataset = load_dataset("tiny_shakespeare")
-dataset = pd.read_csv('../data/tiny_shakespeare.csv')
+try:
+    d = pd.read_csv('../data/alphabet.csv')['d']
+except:
+    print("reading data\n")
+    data = []
+    for i, line in enumerate(open(os.getcwd() + '/../external/gpt-2-output-dataset/data/webtext.train.jsonl')):
+        data.append(json.loads(line)['text'])
+    
 
-data = dataset['train'][0]
+    d = set()
+    for line in data:
+        for c in line:
+            d.add(c)
+    d = sorted(list(d))
+    f = pd.DataFrame()
+    f['d'] = d
+    f.to_csv('../data/alphabet.csv')
 
-d = sorted(list(set(data)))
+print("alphabet")
+print(len(d), '\n')
+ss = lambda i, c: (i, c) if i<50 else (51, '¥')
 
-chtoi = {chr: i for i, chr in enumerate(d)}
-itoch = {i: chr for i, chr in enumerate(d)}
+chtoi = {chr:ss(i, chr)[0] for i, chr in enumerate(d)}
+itoch = {i: ss(i, chr)[1] for i, chr in enumerate(d)}
+
 
 encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
 
+d = sorted(list(set(decode(encode(d)))))
 
 
 vocab_size = len(d)  # This is about 50 000 in GPT
@@ -34,8 +52,7 @@ if large:
     embedding_size = 384
     n_heads = 6
     n_multiheads = 6
-    data = torch.tensor(encode(data), device=device)
-    dataset_size = len(data)
+        
     lr = 3e-4
     eval_iters = 200
     epochs = 100000
@@ -47,8 +64,7 @@ else:
     embedding_size = 16
     n_heads = 4
     n_multiheads = 1
-    data = torch.tensor(encode(data), device=device)
-    dataset_size = len(data)
+    
     lr = 3e-4
     eval_iters = 200
     epochs = 50000
@@ -62,29 +78,31 @@ torch.manual_seed(123)
 model = gptModel(vocab_size, batch_size, block_size, embedding_size, n_heads, n_multiheads, dropout, device)
 if device == 'cuda':
     model.cuda()
-
+    
+print(model)
+print()
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 prev_loss = 999
 filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
-txt_filepath = os.path.join(os.getcwd(), '../data/tiny_shakespeare_train.txt')
-gpt_dataset = GptDataset(txt_filepath, block_size, batch_size, d, device)
-txt_filepath_test = os.path.join(os.getcwd(), '../data/tiny_shakespeare_test.txt')
-gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, d, device)
+
+txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.train.jsonl')
+gpt_dataset = GptDataset(txt_filepath, block_size, batch_size, encode, decode, device)
+print("gpt_dataset_loaded")
 
 
 # model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
-print(model)
 
 
 
-loss_est = estimate_loss(model, data, dataset_size, gpt_dataset_test)
+loss_est = estimate_loss(model, data, dataset_size, gpt_dataset)
 print(loss_est)
 
 
 for epoch in range(epochs):
-    x, y = get_batch(data, device, dataset_size, block_size, batch_size)
+    x, y = next(gpt_dataset)
+    #x, y = get_batch(data, device, dataset_size, block_size, batch_size)
 
     logits = model(x)
     B, T, C = logits.shape
@@ -99,23 +117,26 @@ for epoch in range(epochs):
     if epoch % 1000 == 0:
         print("epoch", epoch)
         loss_est = estimate_loss(model, data, dataset_size, gpt_dataset_test)
-        if loss_est['random'].item() < prev_loss:
+        if loss_est['test'].item() < prev_loss:
             state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
                      'optimizer': optimizer.state_dict(), 'loss_est': loss_est, }
             torch.save(state, filepath)
-            prev_loss = loss_est['random'].item()
+            prev_loss = loss_est['test'].item()
             del state
             print('new best loss found saving model.', loss_est)
         else:
             print('loss is not better than previous best', loss_est)
         del loss_est
         print(torch.cuda.max_memory_allocated())
+        print()
     del x, y, logits, loss, B, T, C
 #test = torch.tensor(encode(dataset['test'][0][:block_size]))
 #test = test.reshape(1, test.shape[0])
 #test = test.to(device)
-data = dataset['test'][0]
-data = torch.tensor(encode(data), device=device)
+del gpt_datset
+
+txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
+gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, d, device)
 print(data)
 loss_est = estimate_accuracy(model, data, len(data), gpt_dataset_test)
 print(loss_est)
