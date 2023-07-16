@@ -1,5 +1,6 @@
 import os
 
+import json
 import numpy as np
 import torch
 from torch.nn import functional as F
@@ -15,31 +16,21 @@ class GptDataset(Dataset):
         self.batch_size = batch_size
         self.id = 0
         self.device = device
-        self.j = 0
-        self.mask = torch.zeros((batch_size, block_size))
         chtoi = {chr: i for i, chr in enumerate(d)}
         itoch = {i: chr for i, chr in enumerate(d)}
 
         self.encode = lambda s: [chtoi[x] for x in s]
         self.decode = lambda i: "".join(itoch[x] for x in i)
 
-        data = open(dataset_path, 'r')
-        data = data.readlines()
+        data = []
+        for i, line in enumerate(open(dataset_path)):
+            data.append(json.loads(line)['text'])
+
         data_2 = [0 for _ in range(len(data))]
         for i in range(len(data_2)):
             data_2[i] = self.encode(data[i])
-        new_data = []
-        for line in data_2:
-            line.append(self.encode('\n'))
-            for i in range(2, len(line)):
-                tmp = np.zeros(block_size + 1)
-                if len(line[:i]) >= len(tmp):
-                    tmp = line[:i][-len(tmp):]
 
-                else:
-                    tmp[-len(line[:i]):] = line[:i]
-                new_data.append(tmp)
-        self.dataset = new_data
+        self.dataset = data_2
 
     def __len__(self):
         'Denotes the total number of samples'
@@ -48,15 +39,25 @@ class GptDataset(Dataset):
     def __getitem__(self, index):
         'Generates one sample of data'
         # Select sample
-        X = self.dataset[index][:-1]
-        y = self.dataset[index][1:]
+
+        data = self.dataset[index:index + self.batch_size]
+        dataset_size = [len(d) for d in data]
+        idx = torch.zeros(self.batch_size)
+        for j in range(len(idx)):
+            if dataset_size[j] - self.block_size - 1 <= 0:
+                data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2), torch.tensor(data[j])))
+                dataset_size[j] = len(data[j])
+            idx[j] = torch.randint(0, dataset_size[j] - self.block_size - 1)
+
+        X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(len(self.batch_size)))])
+        y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(len(self.batch_size)))])
+
         return torch.tensor(X, dtype=int).to(self.device), torch.tensor(y, dtype=int).to(self.device)
 
     def __next__(self):
-        X, Y = zip(*[self.__getitem__(self.id + i) for i in range(self.batch_size)])
-        X, Y = torch.stack(X), torch.stack(Y)
+        X, Y = self.__getitem__(self.id)
         self.id = self.id + self.batch_size
-        if self.id >= self.__len__():
+        if self.id + self.batch_size >= self.__len__():
             self.id - self.__len__()
         return X, Y
 
@@ -86,6 +87,20 @@ def load_checkpoint(model, optimizer, losslogger, filename, device):
 
 def get_batch(data, device, dataset_size, block_size, batch_size):
     idx = torch.randint(dataset_size - block_size, (batch_size,))
+    x = torch.stack([data[i: (i + block_size)] for i in idx])
+    y = torch.stack([data[i + 1: (i + block_size + 1)] for i in idx])
+    idx = torch.randint(block_size * 2, (batch_size,))
+    zero = torch.zeros(x.shape)
+    for i in range(batch_size):
+        x[i, :-idx[i]] = zero[i, :-idx[i]]
+    x, y = x.to(device), y.to(device)
+    del idx
+    return x, y
+
+def get_batch_webtext(data, device, dataset_size, block_size, batch_size):
+    idx = torch.randint(dataset_size - block_size, (batch_size,))
+    idx2 = torch.randint(1024 - block_size, (batch_size,))
+
     x = torch.stack([data[i: (i + block_size)] for i in idx])
     y = torch.stack([data[i + 1: (i + block_size + 1)] for i in idx])
     idx = torch.randint(block_size * 2, (batch_size,))
