@@ -6,6 +6,7 @@ from torch.nn import functional as F
 
 from model import gptModel
 from my_utils import get_batch, estimate_loss, load_checkpoint, estimate_accuracy
+from my_utils import GptDataset
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
@@ -42,7 +43,7 @@ if large:
     filename = 'models/model_large.pt'
 else:
     block_size = 8  # This is around 2000 in GPT
-    batch_size = 1
+    batch_size = 2
     embedding_size = 16
     n_heads = 4
     n_multiheads = 1
@@ -52,7 +53,7 @@ else:
     eval_iters = 200
     epochs = 50000
     dropout = 0.1
-    filename = 'models/model.pt'
+    filename = 'models/model_random.pt'
 # ----------------
 
 
@@ -66,6 +67,10 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 prev_loss = 999
 filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
+txt_filepath = os.path.join(os.getcwd(), '../data/tiny_shakespeare_train.txt')
+gpt_dataset = GptDataset(txt_filepath, block_size, batch_size, d, device)
+txt_filepath_test = os.path.join(os.getcwd(), '../data/tiny_shakespeare_test.txt')
+gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, d, device)
 
 
 # model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
@@ -73,11 +78,14 @@ filepath = os.path.join(filepath, filename)
 print(model)
 
 
-# loss_est = estimate_loss(model, data, dataset_size)
-# print(loss_est)
 
-for epoch in range(epochs):
+loss_est = estimate_loss(model, data, dataset_size, gpt_dataset_test)
+print(loss_est)
+
+
+for epoch in range(0):
     x, y = get_batch(data, device, dataset_size, block_size, batch_size)
+
     logits = model(x)
     B, T, C = logits.shape
     logits = logits.view(B * T, C)
@@ -90,12 +98,12 @@ for epoch in range(epochs):
     optimizer.step()
     if epoch % 1000 == 0:
         print("epoch", epoch)
-        loss_est = estimate_loss(model, data, dataset_size)
-        if loss_est['val'].item() < prev_loss:
+        loss_est = estimate_loss(model, data, dataset_size, gpt_dataset_test)
+        if loss_est['random'].item() < prev_loss:
             state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
                      'optimizer': optimizer.state_dict(), 'loss_est': loss_est, }
             torch.save(state, filepath)
-            prev_loss = loss_est['val'].item()
+            prev_loss = loss_est['random'].item()
             del state
             print('new best loss found saving model.', loss_est)
         else:
@@ -109,7 +117,7 @@ for epoch in range(epochs):
 data = dataset['test'][0]
 data = torch.tensor(encode(data), device=device)
 print(data)
-loss_est = estimate_accuracy(model, data, len(data))
+loss_est = estimate_accuracy(model, data, len(data), gpt_dataset_test)
 print(loss_est)
 test = torch.zeros((1, 1), dtype=torch.long, device=device)
 with open('../data/output_text.txt', 'w') as file:

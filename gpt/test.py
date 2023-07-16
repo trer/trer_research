@@ -45,7 +45,7 @@ else:
     eval_iters = 200
     epochs = 10000
     dropout = 0.1
-    filename = 'models/model.pt'
+    filename = 'models/model_random.pt'
 # ----------------
 
 
@@ -63,55 +63,91 @@ if device == 'cuda':
     model.cuda()
 
 
+encoded_data = encode(data)
+
 model.eval()
+
+
+def to_str(X):
+    tmp = [str(i.item()) for i in X]
+    tmp = " ".join(tmp)
+    return tmp + '\n'
+
+
+def to_int(query):
+    query = query.rsplit()
+    return [int(c) for c in query[:]]
+
+
+
+
 folds = [i for i in range(14)]
 for fold in folds:
     predictions = []
     ground_truth = []
     queries = open(f'../external/SUBSEQ/IPredict/outputs/TINYSHAKESPEARE.fold.{fold}.queries.mapped.txt', 'r')
+    #queries = open(f'../data/tiny_shakespeare_queries.mapped.txt', 'r')
     queries_lines = queries.readlines()
     consequents = open(f'../external/SUBSEQ/IPredict/outputs/TINYSHAKESPEARE.fold.{fold}.consequent.mapped.txt', 'r')
+    #consequents = open(f'../data/tiny_shakespeare_consequents.mapped.txt', 'r')
     consequent_lines = consequents.readlines()
 
-    dataset = pd.read_csv('../data/tiny_shakespeare.csv')
-    data = dataset['test'][0]
-    data = torch.tensor(encode(data), device=device)
 
-    for query in queries_lines:
-        query = query.split(" ")
-        query = [int(c) for c in query[:-1]]
+    correct = 0
+    wrong = 0
+    total = 0
+    last = 0
+    for query, consequent in zip(queries_lines, consequent_lines):
+
+        #print("new")
+        query = to_int(query)
+        consequent = to_int(consequent)
+        #print(query, consequent)
+        #print(query[-1], consequent[0])
+
         tmp = np.zeros(block_size)
         if len(query) >= len(tmp):
             tmp = query[-len(tmp):]
+
         else:
             tmp[-len(query):] = query
         tmp = torch.tensor(tmp, dtype=int, device=device).view((1, len(tmp)))
         out = model(tmp)
 
         out = torch.argmax(out[:, -1, :], -1)
-        predictions.append(out)
 
 
-    for consequent in consequent_lines:
-        consequent = consequent.split(" ")
-        consequent = [int(c) for c in consequent[:-1]]
-        ground_truth.append(consequent)
+        if out == -1:
+            missed = missed + 1
+            break
+        elif consequent[0] == out:
+            correct = correct + 1
+        elif consequent[1] == out:
+            last += 1
+        total = total + 1
 
-    if len(ground_truth) != len(predictions):
-        print("sumthing wong")
-        print(len(ground_truth), len(predictions))
-
-    correct = 0
-    wrong = 0
-    total = 0
-    missed = 0
-    for i in range(len(ground_truth)):
-        for j in range(len(ground_truth[i])):
-            if predictions[i] == -1:
-                missed = missed + 1
-                break
-            elif ground_truth[i][j] == predictions[i]:
-                correct = correct + 1
-            total = total + 1
     print(f"correct: {correct}")
+    print(f'last: {last}')
     print(f"acc, {correct / total}")
+
+"""
+id = encoded_data.index(query[0])
+true_match = False
+while id != -1:
+    match = True
+    for i in range(len(query)):
+        if query[i] != encoded_data[id + i]:
+            match = False
+            break
+    if match:
+        true_match = True
+        break
+    id = encoded_data.index(query[0], id+1)
+if true_match:
+    print("true match found")
+else:
+    print("didn't find a match for this query")
+    
+        offset_tmp = max(0, len(tmp) - len(query))
+        offset_query = max(0, len(query) - len(tmp))
+"""
