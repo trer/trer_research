@@ -37,7 +37,7 @@ if large:
     dataset_size = len(data)
     lr = 3e-4
     eval_iters = 200
-    epochs = 0 #100000
+    epochs = 100000
     dropout = 0.2
     filename = 'models/model_large.pt'
 else:
@@ -68,7 +68,7 @@ filepath = os.getcwd()
 filepath = os.path.join(filepath, filename)
 
 
-model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+# model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 print(model)
 
