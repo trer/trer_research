@@ -48,7 +48,7 @@ class GptDataset(Dataset):
             if dataset_size[j] - self.block_size - 1 <= 0:
                 data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2), torch.tensor(data[j])))
                 dataset_size[j] = len(data[j])
-            idx[j] = torch.randint(0, dataset_size[j] - self.block_size - 1)
+            idx[j] = torch.randint(dataset_size[j] - self.block_size - 1, (1,))[0]
 
         X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(len(self.batch_size)))])
         y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(len(self.batch_size)))])
