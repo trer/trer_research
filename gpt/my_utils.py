@@ -130,16 +130,18 @@ def get_train(data, device, dataset_size, block_size, batch_size):
 
 
 @torch.no_grad()
-def estimate_loss(model, data, dataset_size, dataset_2, eval_iters=100):
+def estimate_loss(model, data, dataset_size, dataset_2, eval_iters=100, splits=('random', 'test')):
     out = {}
     model.eval()
-    for split in ['random', 'test']:
+    for split in splits:
         losses = torch.zeros(eval_iters)
         for k in range(eval_iters):
             if split == 'random':
                 X, Y = get_batch(data, model.device, dataset_size, model.block_size, model.batch_size)
-            else:
+            elif split == 'test':
                 X, Y = next(dataset_2)
+            else:
+                raise ValueError
             logits = model(X)
             B, T, C = logits.shape
             logits = logits.view(B * T, C)
