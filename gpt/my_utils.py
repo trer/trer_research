@@ -12,6 +12,7 @@ class GptDataset(Dataset):
 
     def __init__(self, dataset_path, block_size, batch_size, encode, decode, device):
         'Initialization'
+        self.dataset_path = dataset_path
         self.block_size = block_size
         self.batch_size = batch_size
         self.id = 0
@@ -20,25 +21,27 @@ class GptDataset(Dataset):
         self.encode = encode
         self.decode = decode
 
-        data = []
-        for i, line in enumerate(open(dataset_path)):
-            data.append(json.loads(line)['text'])
+        with open(dataset_path, 'r') as fl:
+            for i, line in enumerate(fl):
+                self.len = i + 1
 
-        data_2 = [0 for _ in range(len(data))]
-        for i in range(len(data_2)):
-            data_2[i] = self.encode(data[i])
+        self.f = open(dataset_path, 'r')
 
-        self.dataset = data_2
+
 
     def __len__(self):
         'Denotes the total number of samples'
-        return len(self.dataset)
+        return self.len
 
     def __getitem__(self, index):
         'Generates one sample of data'
         # Select sample
+        data = []
+        for i, line in enumerate(self.f):
+            if i >= self.batch_size:
+                break
+            data.append(self.encode(json.loads(line)['text']))
 
-        data = self.dataset[index:index + self.batch_size]
         dataset_size = [len(d) for d in data]
         idx = torch.zeros(self.batch_size)
         for j in range(len(idx)):
@@ -56,7 +59,10 @@ class GptDataset(Dataset):
         X, Y = self.__getitem__(self.id)
         self.id = self.id + self.batch_size
         if self.id + self.batch_size >= self.__len__():
-            self.id - self.__len__()
+            self.f.close()
+            self.f = open(self.dataset_path, 'r')
+            self.id = 0
+            
         return X, Y
 
 
