@@ -1,3 +1,4 @@
+import json
 import os
 
 import numpy as np
@@ -5,25 +6,64 @@ import pandas as pd
 import torch
 
 from model import gptModel
-from my_utils import load_checkpoint, get_batch
+from my_utils import load_checkpoint, get_batch, GptDataset
 
-dataset = pd.read_csv('../data/tiny_shakespeare.csv')
-data = dataset['train'][0]
-d = sorted(list(set(data)))
+block_size = 256  # This is around 2000 in GPT
+batch_size = 1
+
+print("reading data\n")
+txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.text.jsonl')
+data = []
+with open(txt_filepath, 'r') as f:
+    for i, line in enumerate(f):
+        data.append(json.load(line)['text'])
+
+txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
+data_test = []
+with open(txt_filepath_test, 'r') as f:
+    for i, line in enumerate(f):
+        data_test.append(json.load(line)['text'])
+
+
+d = set()
+for line in data:
+    for c in line:
+        d.add(c)
+d = sorted(list(d))
+
 chtoi = {chr: i for i, chr in enumerate(d)}
 itoch = {i: chr for i, chr in enumerate(d)}
 
 encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
 
-
-
-
-
-
 vocab_size = len(d)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 large = True
+
+
+def to_str(X):
+    tmp = [str(i.item()) for i in X]
+    tmp = " ".join(tmp)
+    return tmp + '\n'
+
+
+def to_int(query):
+    query = query.split(" ")
+    return [int(c) for c in query[:]]
+
+gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, encode, decode, device)
+
+
+with open('../data/webtext_queries.mapped.txt', 'w') as f:
+    with open('../data/webtext_consequents.mapped.txt', 'w') as fl:
+        for i in range(10000):
+            X, Y = next(gpt_dataset_test)
+
+            f.write(X)
+            fl.write(Y)
+
+"""
 
 if large:
     block_size = 256  # This is around 2000 in GPT
@@ -61,31 +101,17 @@ filepath = os.path.join(filepath, filename)
 
 model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 model.eval()
-data = dataset['test'][0]
-data = torch.tensor(encode(data), device=device)
-dataset_size = len(data)
 
 
-def to_str(X):
-    tmp = [str(i.item()) for i in X]
-    tmp = " ".join(tmp)
-    return tmp + '\n'
 
 
-def to_int(query):
-    query = query.split(" ")
-    return [int(c) for c in query[:]]
+
 
 
 b_correct = 0
 b_total = 0
 a_correct = 0
 a_total = 0
-
-with open('../data/tiny_shakespeare_queries.mapped.txt', 'w') as f:
-    with open('../data/tiny_shakespeare_consequents.mapped.txt', 'w') as fl:
-        for i in range(10000):
-            X, Y = get_batch(data, device, dataset_size, block_size, 1)
 
 
             out = model(X)
@@ -122,14 +148,12 @@ with open('../data/tiny_shakespeare_queries.mapped.txt', 'w') as f:
 
             print("b_correct", b_correct, b_correct/b_total)
             print("a_correct", a_correct, a_correct/a_total)
-
-            f.write(X)
-            fl.write(Y)
-
+            
+            
+            
+      
 print(f"final before: \n b_correct: {b_correct}, b_total: {b_total}, acc: {b_correct / b_total}")
-print(f"final after: \n a_correct: {a_correct}, a_total: {a_total}, acc: {a_correct / a_total}")
-
-"""
+print(f"final after: \n a_correct: {a_correct}, a_total: {a_total}, acc: {a_correct / a_total}")      
 "C:/Users/tor-d/git/trer_research/external/sdsl-lite"
 
 data_1 = data['train'][0]
