@@ -16,14 +16,16 @@ class GptDataset(Dataset):
         self.block_size = block_size
         self.batch_size = batch_size
         self.id = 0
+        self.len = 0
         self.device = device
 
         self.encode = encode
-        self.decode = decode
+        self.decode = decode       
 
         with open(dataset_path, 'r') as fl:
             for i, line in enumerate(fl):
                 self.len = i + 1
+        print(self.len)
 
         self.f = open(dataset_path, 'r')
 
@@ -40,28 +42,30 @@ class GptDataset(Dataset):
         for i, line in enumerate(self.f):
             if i >= self.batch_size:
                 break
-            data.append(self.encode(json.loads(line)['text']))
+            data.append(torch.tensor(self.encode(json.loads(line)['text']), dtype=int))
 
         dataset_size = [len(d) for d in data]
-        idx = torch.zeros(self.batch_size)
+        idx = torch.zeros(self.batch_size, dtype=int)
         for j in range(len(idx)):
             if dataset_size[j] - self.block_size - 1 <= 0:
-                data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2), torch.tensor(data[j])))
+                data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2, dtype=int), data[j]))
                 dataset_size[j] = len(data[j])
             idx[j] = torch.randint(dataset_size[j] - self.block_size - 1, (1,))[0]
+        
+        X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(self.batch_size))])
+        y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(self.batch_size))])
+        X, y = X.clone().detach().to(self.device), y.clone().detach().to(self.device)
+        return X, y
 
-        X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(len(self.batch_size)))])
-        y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(len(self.batch_size)))])
-
-        return torch.tensor(X, dtype=int).to(self.device), torch.tensor(y, dtype=int).to(self.device)
 
     def __next__(self):
+        if self.id + self.batch_size >= self.__len__():
+            print("reseting file")
+            self.f.seek(0)
+            self.id = 0
         X, Y = self.__getitem__(self.id)
         self.id = self.id + self.batch_size
-        if self.id + self.batch_size >= self.__len__():
-            self.f.close()
-            self.f = open(self.dataset_path, 'r')
-            self.id = 0
+        
             
         return X, Y
 

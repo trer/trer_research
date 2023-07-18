@@ -14,11 +14,13 @@ print(device)
 
 # dataset = load_dataset("tiny_shakespeare")
 try:
-    d = pd.read_csv('../data/alphabet.csv')['d']
+    d = pd.read_csv('../data/aalphabet.csv')['d']
 except:
     print("reading data\n")
     data = []
     for i, line in enumerate(open(os.getcwd() + '/../external/gpt-2-output-dataset/data/webtext.train.jsonl')):
+        data.append(json.loads(line)['text'])
+    for i, line in enumerate(open(os.getcwd() + '/../external/gpt-2-output-dataset/data/webtext.test.jsonl')):
         data.append(json.loads(line)['text'])
     
 
@@ -31,9 +33,8 @@ except:
     f['d'] = d
     f.to_csv('../data/alphabet.csv')
 
-print("alphabet")
-print(len(d), '\n')
-ss = lambda i, c: (i, c) if i<50 else (51, '¥')
+
+ss = lambda i, c: (i, c) if i<=126 else (127, '¿')
 
 chtoi = {chr:ss(i, chr)[0] for i, chr in enumerate(d)}
 itoch = {i: ss(i, chr)[1] for i, chr in enumerate(d)}
@@ -46,6 +47,7 @@ d = sorted(list(set(decode(encode(d)))))
 
 
 vocab_size = len(d)  # This is about 50 000 in GPT
+
 large = True
 if large:
     block_size = 256  # This is around 2000 in GPT
@@ -73,6 +75,12 @@ else:
     filename = 'models/model_random.pt'
 # ----------------
 
+print("gpt_dataset_loaded")
+txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
+gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, encode, decode, device)
+print("acutally loaded")
+print()
+
 
 torch.manual_seed(123)
 
@@ -90,8 +98,6 @@ filepath = os.path.join(filepath, filename)
 txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.train.jsonl')
 gpt_dataset = GptDataset(txt_filepath, block_size, batch_size, encode, decode, device)
 print("gpt_dataset_loaded")
-txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
-gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, encode, decode, device)
 
 
 # model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
@@ -131,7 +137,7 @@ for epoch in range(epochs):
         else:
             print('loss is not better than previous best', loss_est)
         del loss_est
-        print(torch.cuda.max_memory_allocated())
+        print("mem allocated", torch.cuda.max_memory_allocated())
         print()
     del x, y, logits, loss, B, T, C
 t2 = t.time()
