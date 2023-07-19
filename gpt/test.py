@@ -6,12 +6,18 @@ import torch
 from torch.nn import functional as F
 
 from model import gptModel
-from my_utils import get_batch, estimate_loss, load_checkpoint
+from my_utils import get_batch, estimate_loss, load_checkpoint, GptDataset
 
-dataset = pd.read_csv('../data/tiny_shakespeare.csv')
+TINYSHAKESPEARE = False
+WEBTEXT = True
 
-data = dataset['train'][0]
 
+if TINYSHAKESPEARE:
+    dataset = pd.read_csv('../data/tiny_shakespeare.csv')
+
+    data = dataset['train'][0]
+else:
+    d = pd.read_csv('../data/aalphabet.csv')['d']
 d = sorted(list(set(data)))
 chtoi = {chr: i for i, chr in enumerate(d)}
 itoch = {i: chr for i, chr in enumerate(d)}
@@ -63,8 +69,6 @@ if device == 'cuda':
     model.cuda()
 
 
-encoded_data = encode(data)
-
 model.eval()
 
 
@@ -85,10 +89,10 @@ folds = [i for i in range(14)]
 for fold in folds:
     predictions = []
     ground_truth = []
-    queries = open(f'../external/SUBSEQ/IPredict/outputs/TINYSHAKESPEARE.fold.{fold}.queries.mapped.txt', 'r')
+    queries = open(f'../data/webtext_queries.mapped.txt', 'r')
     #queries = open(f'../data/tiny_shakespeare_queries.mapped.txt', 'r')
     queries_lines = queries.readlines()
-    consequents = open(f'../external/SUBSEQ/IPredict/outputs/TINYSHAKESPEARE.fold.{fold}.consequent.mapped.txt', 'r')
+    consequents = open(f'../data/webtext_consequents.mapped.txt', 'r')
     #consequents = open(f'../data/tiny_shakespeare_consequents.mapped.txt', 'r')
     consequent_lines = consequents.readlines()
 
