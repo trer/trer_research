@@ -16,17 +16,22 @@ if TINYSHAKESPEARE:
     dataset = pd.read_csv('../data/tiny_shakespeare.csv')
 
     data = dataset['train'][0]
+    d = sorted(list(set(data)))
 else:
-    d = pd.read_csv('../data/aalphabet.csv')['d']
-d = sorted(list(set(data)))
-chtoi = {chr: i for i, chr in enumerate(d)}
-itoch = {i: chr for i, chr in enumerate(d)}
+    d = pd.read_csv('../data/alphabet.csv')['d']
+
+ss = lambda i, c: (i, c) if i<=126 else (127, '¿')
+
+chtoi = {chr:ss(i, chr)[0] for i, chr in enumerate(d)}
+itoch = {i: ss(i, chr)[1] for i, chr in enumerate(d)}
 
 encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
 
+d = sorted(list(set(decode(encode(d)))))
 
 vocab_size = len(d)
+print(vocab_size)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 large = True
 
