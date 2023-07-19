@@ -1,4 +1,5 @@
 import os
+import time as t
 
 import numpy as np
 import pandas as pd
@@ -94,6 +95,7 @@ folds = [i for i in range(14)]
 for fold in folds:
     predictions = []
     ground_truth = []
+    times = []
     queries = open(f'../data/webtext_queries.mapped.txt', 'r')
     #queries = open(f'../data/tiny_shakespeare_queries.mapped.txt', 'r')
     queries_lines = queries.readlines()
@@ -121,7 +123,9 @@ for fold in folds:
         else:
             tmp[-len(query):] = query
         tmp = torch.tensor(tmp, dtype=int, device=device).view((1, len(tmp)))
+        t1 = t.time()
         out = model(tmp)
+        t2 = t.time()
 
         out = torch.argmax(out[:, -1, :], -1)
 
@@ -134,7 +138,8 @@ for fold in folds:
         elif consequent[1] == out:
             last += 1
         total = total + 1
-
+        times.append(t2-t1)
+    print(f"Inference time: max: {max(times)}, min: {min(times)}, avg: {np.mean(times)}")
     print(f"correct: {correct}")
     print(f'last: {last}')
     print(f"acc, {correct / total}")
