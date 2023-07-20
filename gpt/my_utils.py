@@ -101,7 +101,10 @@ def load_checkpoint(model, optimizer, losslogger, filename, device):
         model.device = device
         print('model device is set to', model.device)
         optimizer.load_state_dict(checkpoint['optimizer'])
-        losslogger = checkpoint['loss_est']['test'].item()
+        if 'test' in checkpoint['loss_est']:
+            losslogger = checkpoint['loss_est']['test'].item()
+        else:
+            losslogger = checkpoint['loss_est']['random'].item()
         print("=> loaded checkpoint '{}' (epoch {})"
               .format(filename, checkpoint['epoch']))
     else:
