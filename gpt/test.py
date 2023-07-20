@@ -91,7 +91,7 @@ def to_int(query):
 
 
 
-folds = [i for i in range(14)]
+folds = [i for i in range(1)]
 for fold in folds:
     predictions = []
     ground_truth = []
@@ -102,7 +102,7 @@ for fold in folds:
     consequents = open(f'../data/webtext_consequents.mapped.txt', 'r')
     #consequents = open(f'../data/tiny_shakespeare_consequents.mapped.txt', 'r')
     consequent_lines = consequents.readlines()
-
+    print(len(queries_lines))
 
     correct = 0
     wrong = 0

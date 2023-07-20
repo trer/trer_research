@@ -12,30 +12,51 @@ block_size = 256  # This is around 2000 in GPT
 batch_size = 1
 
 print("reading data\n")
-txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.text.jsonl')
+
+
+training = True
+if training:
+    max_int = 0
+    with open('../data/webtext_training.mapped.txt', 'r') as f0:
+        print("trying to print line")
+        txt = f0.read(1000)
+        print(txt)
+
+
+
+txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.train.jsonl')
 data = []
 with open(txt_filepath, 'r') as f:
     for i, line in enumerate(f):
-        data.append(json.load(line)['text'])
+        data.append(json.loads(line)['text'])
 
 txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
 data_test = []
 with open(txt_filepath_test, 'r') as f:
     for i, line in enumerate(f):
-        data_test.append(json.load(line)['text'])
+        data_test.append(json.loads(line)['text'])
 
 
 d = set()
 for line in data:
     for c in line:
         d.add(c)
+
+for line in data_test:
+    for c in line:
+        d.add(c)
 d = sorted(list(d))
 
-chtoi = {chr: i for i, chr in enumerate(d)}
-itoch = {i: chr for i, chr in enumerate(d)}
+ss = lambda i, c: (i, c) if i<=126 else (127, '¿')
+
+chtoi = {chr:ss(i, chr)[0] for i, chr in enumerate(d)}
+itoch = {i: ss(i, chr)[1] for i, chr in enumerate(d)}
+
 
 encode = lambda s: [chtoi[x] for x in s]
 decode = lambda i: "".join(itoch[x] for x in i)
+
+d = sorted(list(set(decode(encode(d)))))
 
 vocab_size = len(d)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -54,14 +75,35 @@ def to_int(query):
 
 gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, encode, decode, device)
 
+training = False
+if training:
+    max_int = 0
+    with open('../data/webtext_training.mapped.txt', 'w') as f0:
+        
+        for i in range(len(data)):
+            encoded = encode(data[i])
+            max_int = max(max_int, max(encoded))
+            encoded = [str(i) for i in encoded]
+            txt = " ".join(encoded) + " "
+            f0.write(txt)
+    
+    with open('../data/webtext_training.mapped.txt', 'a') as f0:
+        f0.seek(0)
+        txt = str(max_int) + '\n'
+        f0.write(txt)
+        
 
-with open('../data/webtext_queries.mapped.txt', 'w') as f:
-    with open('../data/webtext_consequents.mapped.txt', 'w') as fl:
-        for i in range(10000):
-            X, Y = next(gpt_dataset_test)
+else:
+    with open('../data/webtext_queries.mapped.txt', 'w') as f1:
+        with open('../data/webtext_consequents.mapped.txt', 'w') as f2:
+            for i in range(10000):
+                X, Y = next(gpt_dataset_test)
+            
+                X = to_str(X[0])
+                Y = to_str(Y[0][-2:])
 
-            f.write(X)
-            fl.write(Y)
+                f1.write(X)
+                f2.write(Y)
 
 """
 

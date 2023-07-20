@@ -40,21 +40,38 @@ class GptDataset(Dataset):
         # Select sample
         data = []
         for i, line in enumerate(self.f):
-            if i >= self.batch_size:
-                break
             data.append(torch.tensor(self.encode(json.loads(line)['text']), dtype=int))
+            if i + 1 >= self.batch_size:
+                break
 
-        dataset_size = [len(d) for d in data]
-        idx = torch.zeros(self.batch_size, dtype=int)
-        for j in range(len(idx)):
-            if dataset_size[j] - self.block_size - 1 <= 0:
-                data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2, dtype=int), data[j]))
-                dataset_size[j] = len(data[j])
-            idx[j] = torch.randint(dataset_size[j] - self.block_size - 1, (1,))[0]
+        try:
+            dataset_size = [len(d) for d in data]
+            idx = torch.zeros(self.batch_size, dtype=int)
+            for j in range(len(idx)):
+                if dataset_size[j] - self.block_size - 1 <= 0:
+                    data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2, dtype=int), data[j]))
+                    dataset_size[j] = len(data[j])
+                idx[j] = torch.randint(dataset_size[j] - self.block_size - 1, (1,))[0]
         
-        X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(self.batch_size))])
-        y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(self.batch_size))])
-        X, y = X.clone().detach().to(self.device), y.clone().detach().to(self.device)
+            X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(self.batch_size))])
+            y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(self.batch_size))])
+            X, y = X.clone().detach().to(self.device), y.clone().detach().to(self.device)
+        except:
+            print(data)
+            print(len(data))
+            dataset_size = [len(d) for d in data]
+            print(dataset_size)
+            idx = torch.zeros(self.batch_size, dtype=int)
+            for j in range(len(idx)):
+                print(dataset_size[j])
+                if dataset_size[j] - self.block_size - 1 <= 0:
+                    data[j] = torch.cat((torch.zeros(-dataset_size[j] + self.block_size + 2, dtype=int), data[j]))
+                    dataset_size[j] = len(data[j])
+                idx[j] = torch.randint(dataset_size[j] - self.block_size - 1, (1,))[0]
+
+            X = torch.stack([data[j][i: (i + self.block_size)] for i, j in zip(idx, range(self.batch_size))])
+            y = torch.stack([data[j][i + 1: (i + self.block_size + 1)] for i, j in zip(idx, range(self.batch_size))])
+            X, y = X.clone().detach().to(self.device), y.clone().detach().to(self.device)
         return X, y
 
 
@@ -84,7 +101,7 @@ def load_checkpoint(model, optimizer, losslogger, filename, device):
         model.device = device
         print('model device is set to', model.device)
         optimizer.load_state_dict(checkpoint['optimizer'])
-        losslogger = checkpoint['loss_est']['random'].item()
+        losslogger = checkpoint['loss_est']['test'].item()
         print("=> loaded checkpoint '{}' (epoch {})"
               .format(filename, checkpoint['epoch']))
     else:
@@ -159,11 +176,11 @@ def estimate_loss(model, data, dataset_size, dataset_2, eval_iters=100, splits=(
 
 
 @torch.no_grad()
-def estimate_accuracy(model, data, dataset_size, dataset_2, eval_iters=100):
+def estimate_accuracy(model, data, dataset_size, dataset_2, eval_iters=100, splits=('random', 'test')):
     out = {}
 
     model.eval()
-    for split in ['random', 'test']:
+    for split in splits:
         out[split] = {}
         out[split] = {}
         out[split]['correct'] = 0
@@ -195,7 +212,7 @@ def estimate_accuracy(model, data, dataset_size, dataset_2, eval_iters=100):
 
 
     model.train()
-    for split in ['random', 'test']:
+    for split in splits:
         print('test')
         print(out[split]['correct'])
         print(out[split]['wrong'])

@@ -100,7 +100,7 @@ gpt_dataset = GptDataset(txt_filepath, block_size, batch_size, encode, decode, d
 print("gpt_dataset_loaded")
 
 
-# model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
+model, optimizer, epoch, prev_loss = load_checkpoint(model, optimizer, prev_loss, filepath, device)
 
 
 
@@ -142,12 +142,19 @@ for epoch in range(epochs):
     del x, y, logits, loss, B, T, C
 t2 = t.time()
 print("end of training time", t2-t1)
+gpt_dataset.f.close()
 del gpt_dataset
+del optimizer
 
-print(data)
-loss_est = estimate_accuracy(model, data, len(data), gpt_dataset_test)
+
+
+
+loss_est = estimate_accuracy(model, [0], 0, gpt_dataset_test, splits=['test'])
 print(loss_est)
+
 test = torch.zeros((1, 1), dtype=torch.long, device=device)
 with open('../data/output_text.txt', 'w') as file:
     file.write(f"Training time:  {str(t2-t1)}")
-    file.write(decode(model.generate(test, 2000)[0].tolist()))
+    file.write(decode(model.generate(test, 5000)[0].tolist()))
+
+
