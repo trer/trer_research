@@ -13,8 +13,8 @@
 CC=g++ -std=c++11
 
 FLAGS=-O3 -g -fpermissive
-FLAGS_SDSL_I=-I ~/include
-FLAGS_SDSL_L=-L ~/lib
+FLAGS_SDSL_I=-I ~/env/bin/include
+FLAGS_SDSL_L=-L ~/env/bin/lib
 OFLAGS=-c
 LIBS=-lsdsl -ldivsufsort -ldivsufsort64
 

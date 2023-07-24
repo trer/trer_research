@@ -42,7 +42,7 @@ vector<vector<int>> readTestQueries(string filename){
 
 int main(int argc, const char * argv[])
 {
-    
+        
     cout << argv[1] << endl;
     vector<vector<int>> testQueries = readTestQueries(argv[2]);
     auto begin= clock();
@@ -67,7 +67,7 @@ int main(int argc, const char * argv[])
         // }
         // for (int i : finalQuery) cout << i << " ";
         // cout << endl;
-        // cout << query << endl;
+        
         cout << pr->start(&query[0], query.size()) << endl;
 
         //break;

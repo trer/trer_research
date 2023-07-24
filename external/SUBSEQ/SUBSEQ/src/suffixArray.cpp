@@ -92,7 +92,6 @@ wt_int<> suffixArray::BWT2WT(){
     int_vector<> v(sa.size(), 1, 0);
     for (int i = 0; i < sa.size(); i++) {
         v[i] = getBWT(i);
-        //cout << v[i] << " ";
     }
     //cout << endl;
     //store_to_file(v, "sdb.sdsl");

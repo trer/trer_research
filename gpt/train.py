@@ -106,6 +106,8 @@ if WEBTEXT:
     splits = ['test']
     test_split = 'test'
 else:
+    data = torch.tensor(encode(data), dtype=torch.long)
+    data_test = torch.tensor(encode(data_test), dtype=torch.long)
     gpt_dataset_test = []
     gpt_dataset = []
     splits = ['random']
@@ -118,7 +120,7 @@ if device == 'cuda':
     model.cuda()
     
 print(model)
-print()
+print("Total params:", sum(p.numel() for p in model.parameters()))
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 prev_loss = 999
 filepath = os.getcwd()
@@ -133,7 +135,7 @@ print(loss_est)
 
 print("starting time")
 t1 = t.time()
-for epoch in range(epochs):
+for epoch in range(0):
     if TINYSHAKESPEARE:
         x, y = get_batch(data, device, dataset_size, block_size, batch_size)
     else:
@@ -151,7 +153,7 @@ for epoch in range(epochs):
     optimizer.step()
     if epoch % 1000 == 0:
         print("epoch", epoch)
-        loss_est = estimate_loss(model, data_test, data_test_size, gpt_dataset_test, splits=[splits])
+        loss_est = estimate_loss(model, data_test, data_test_size, gpt_dataset_test, splits=splits)
         if loss_est[test_split].item() < prev_loss:
             state = {'epoch': epoch + 1, 'state_dict': model.state_dict(),
                      'optimizer': optimizer.state_dict(), 'loss_est': loss_est, }
@@ -167,14 +169,15 @@ for epoch in range(epochs):
     del x, y, logits, loss, B, T, C
 t2 = t.time()
 print("end of training time", t2-t1)
-gpt_dataset.f.close()
+if WEBTEXT:
+    gpt_dataset.f.close()
 del gpt_dataset
 del optimizer
 
 
 
 
-loss_est = estimate_accuracy(model, [0], 0, gpt_dataset_test, splits=splits)
+loss_est = estimate_accuracy(model, data_test, data_test_size, gpt_dataset_test, splits=splits)
 print(loss_est)
 
 test = torch.zeros((1, 1), dtype=torch.long, device=device)

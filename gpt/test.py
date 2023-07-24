@@ -14,11 +14,18 @@ WEBTEXT = True
 
 
 if TINYSHAKESPEARE:
+    model_name = 'tinyShakespeare'
+    query_file = '../data/tiny_shakespeare_queries.mapped.txt'
+    consequents_file = '../data/tiny_shakespeare_consequents.mapped.txt'
     dataset = pd.read_csv('../data/tiny_shakespeare.csv')
-
+    answers_file = None
     data = dataset['train'][0]
     d = sorted(list(set(data)))
 else:
+    query_file = '../data/webtext_queries.mapped.txt'
+    consequents_file = '../data/webtext_consequents.mapped.txt'
+    answers_file = '../data/WEBTEXTBIG.fold.0.answers.sbp.mapped.txt'
+    model_name = 'webtext'
     d = pd.read_csv('../data/alphabet.csv')['d']
 
 ss = lambda i, c: (i, c) if i<=126 else (127, '¿')
@@ -46,7 +53,7 @@ if large:
     eval_iters = 200
     epochs = 10000
     dropout = 0.2
-    filename = 'models/model_large.pt'
+    filename = f'models/{model_name}model_large.pt'
 else:
     block_size = 8  # This is around 2000 in GPT
     batch_size = 1
@@ -96,12 +103,17 @@ for fold in folds:
     predictions = []
     ground_truth = []
     times = []
-    queries = open(f'../data/webtext_queries.mapped.txt', 'r')
+    queries = open(query_file, 'r')
     #queries = open(f'../data/tiny_shakespeare_queries.mapped.txt', 'r')
     queries_lines = queries.readlines()
-    consequents = open(f'../data/webtext_consequents.mapped.txt', 'r')
+    consequents = open(consequents_file, 'r')
     #consequents = open(f'../data/tiny_shakespeare_consequents.mapped.txt', 'r')
     consequent_lines = consequents.readlines()
+    if answers_file is not None:
+        answers = open(answers_file, 'r')
+        answers_lines = answers.readlines()
+        print(len(answers_lines))
+        answers_lines = iter(answers_lines)
     print(len(queries_lines))
 
     correct = 0
@@ -115,21 +127,31 @@ for fold in folds:
         consequent = to_int(consequent)
         #print(query, consequent)
         #print(query[-1], consequent[0])
-
-        tmp = np.zeros(block_size)
-        if len(query) >= len(tmp):
-            tmp = query[-len(tmp):]
-
+        if answers_file is not None:
+            try:
+                answer = next(answers_lines)
+                out = to_int(answer)[0]
+            except ValueError:
+                continue
+            except StopIteration:
+                break
         else:
-            tmp[-len(query):] = query
-        tmp = torch.tensor(tmp, dtype=int, device=device).view((1, len(tmp)))
-        t1 = t.time()
-        out = model(tmp)
-        t2 = t.time()
+            tmp = np.zeros(block_size)
+            if len(query) >= len(tmp):
+                tmp = query[-len(tmp):]
+    
+            else:
+                tmp[-len(query):] = query
+            tmp = torch.tensor(tmp, dtype=int, device=device).view((1, len(tmp)))
+            t1 = t.time()
+            out = model(tmp)
+            t2 = t.time()
 
-        out = torch.argmax(out[:, -1, :], -1)
-
-
+            out = torch.argmax(out[:, -1, :], -1)
+            
+            times.append(t2-t1)
+        
+        print(out, consequent)
         if out == -1:
             missed = missed + 1
             break
@@ -138,10 +160,12 @@ for fold in folds:
         elif consequent[1] == out:
             last += 1
         total = total + 1
-        times.append(t2-t1)
+    if not times:
+        times = [0]
     print(f"Inference time: max: {max(times)}, min: {min(times)}, avg: {np.mean(times)}")
     print(f"correct: {correct}")
     print(f'last: {last}')
+    print(f'total: {total}')
     print(f"acc, {correct / total}")
 
 """

@@ -11,42 +11,47 @@ from my_utils import load_checkpoint, get_batch, GptDataset
 block_size = 256  # This is around 2000 in GPT
 batch_size = 1
 
-print("reading data\n")
 
+WEBTEXT = True
+TINYSHAKESPEARE = False
 
 training = True
-if training:
-    max_int = 0
-    with open('../data/webtext_training.mapped.txt', 'r') as f0:
-        print("trying to print line")
-        txt = f0.read(1000)
-        print(txt)
+test = False
 
+if WEBTEXT:
+    txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.train.jsonl')
+    data = []
+    with open(txt_filepath, 'r') as f:
+        for i, line in enumerate(f):
+            data.append(json.loads(line)['text'])
 
+    txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
+    data_test = []
+    with open(txt_filepath_test, 'r') as f:
+        for i, line in enumerate(f):
+            data_test.append(json.loads(line)['text'])
 
-txt_filepath = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.train.jsonl')
-data = []
-with open(txt_filepath, 'r') as f:
-    for i, line in enumerate(f):
-        data.append(json.loads(line)['text'])
+    d = set()
+    for line in data:
+        for c in line:
+            d.add(c)
 
-txt_filepath_test = os.path.join(os.getcwd(), '../external/gpt-2-output-dataset/data/webtext.test.jsonl')
-data_test = []
-with open(txt_filepath_test, 'r') as f:
-    for i, line in enumerate(f):
-        data_test.append(json.loads(line)['text'])
-
-
-d = set()
-for line in data:
-    for c in line:
+    for line in data_test:
+        for c in line:
+            d.add(c)
+    d = sorted(list(d))
+else:
+    dataset = pd.read_csv('../data/tiny_shakespeare.csv')
+    data = dataset['train'][0]
+    data_test = dataset['test'][0]
+    data_test_size = len(data_test)
+    d = set()
+    for c in data:
         d.add(c)
 
-for line in data_test:
-    for c in line:
+    for c in data_test:
         d.add(c)
-d = sorted(list(d))
-
+    d = sorted(list(d))
 ss = lambda i, c: (i, c) if i<=126 else (127, '¿')
 
 chtoi = {chr:ss(i, chr)[0] for i, chr in enumerate(d)}
@@ -73,9 +78,14 @@ def to_int(query):
     query = query.split(" ")
     return [int(c) for c in query[:]]
 
-gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, encode, decode, device)
+if WEBTEXT:
+    gpt_dataset_test = GptDataset(txt_filepath_test, block_size, batch_size, encode, decode, device)
+else:
+    data = torch.tensor(encode(data), dtype=torch.long)
+    data_test = torch.tensor(encode(data_test), dtype=torch.long)
 
-training = False
+
+"""
 if training:
     max_int = 0
     with open('../data/webtext_training.mapped.txt', 'w') as f0:
@@ -91,13 +101,72 @@ if training:
         f0.seek(0)
         txt = str(max_int) + '\n'
         f0.write(txt)
-        
+"""
+"""
+if training:
+    max_int = 0
+    for i in range(len(data)):
+        max_int = max(max_int, max(encode(data[i])))
 
-else:
-    with open('../data/webtext_queries.mapped.txt', 'w') as f1:
-        with open('../data/webtext_consequents.mapped.txt', 'w') as f2:
-            for i in range(10000):
-                X, Y = next(gpt_dataset_test)
+
+    with open('../data/webtext_training3.mapped.txt', 'w') as f0:
+        f0.seek(0)
+        txt = str(max_int) + '\n'
+        f0.write(txt)
+        max_size = 650000000
+        current_size = 0
+        for i in range(len(data)):
+            if current_size >= max_size:
+                print("breaking on max_size")
+                break
+            encoded = encode(data[i])
+            current_size += 4* (len(encoded) + len(encoded)//8 + 1)
+            j = 0
+            while j + 8 < len(encoded):
+                txt = encoded[j:j+8]
+                txt.append(max_int)
+                txt = [str(i) for i in txt]
+                txt = " ".join(txt) + " "
+
+                f0.write(txt)
+                j += 8
+            txt = encoded[j:]
+            txt.append(max_int)
+            txt = [str(i) for i in txt]
+            txt = " ".join(txt) + " "
+
+            f0.write(txt)
+            j += 8
+
+"""
+if training:
+    max_int = 0
+    for i in range(len(data)):
+        max_int = max(max_int, max(encode(data[i])))
+
+    with open('../data/webtext_training4.mapped.txt', 'w') as f0:
+        f0.seek(0)
+        txt = str(max_int) + '\n'
+        f0.write(txt)
+        j = 0
+        max_size = 2600000000
+        for i in range(len(data)):
+            if j >= max_size:
+                print("breaking on max_size")
+                break
+            encoded = encode(data[i])
+            j += 4*len(encoded)
+            txt = [str(i) for i in encoded]
+            txt = " ".join(txt) + " "
+            f0.write(txt)
+if test:
+    with open('../data/webtext_small_queries.mapped.txt', 'w') as f1:
+        with open('../data/webtext_small_consequents.mapped.txt', 'w') as f2:
+            for i in range(100):
+                if WEBTEXT:
+                    X, Y = next(gpt_dataset_test)
+                else:
+                    X, Y = get_batch(data_test, device, data_test_size, block_size, batch_size)
             
                 X = to_str(X[0])
                 Y = to_str(Y[0][-2:])

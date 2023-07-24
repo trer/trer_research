@@ -23,9 +23,10 @@ backwardsSearchBWT::backwardsSearchBWT(const string filename){
     seqNumber =0;
     stop = false;
     ifstream file(filename);
-    sigma_seperator = initialise(file, 10);
-    cout << "reconstructing L and alphabethCounters" << endl;
+    sigma_seperator = initialise(file, 1);
+    
     this->L = BWT2WT();
+    
     for (int i = 0; i < this->L.size(); i++) {
         if (this->L[i] == sigma_seperator) seqNumber++;
         try {
@@ -96,8 +97,10 @@ int backwardsSearchBWT::searchQuery(int* xy, int size, int& finalStartRange, int
 
 int backwardsSearchBWT::search(int c, int rangeStart, int rangeEnd, int& newRangeStart, int& newRangeEnd){
     if (rangeEnd - rangeStart >= 0 && rangeEnd != -1 && rangeStart != -1){
-        int rankStart = L.rank(rangeStart, c);
+        
+	int rankStart = L.rank(rangeStart, c);
         int rankEnd = L.rank(rangeEnd + 1, c);
+
         if (rankEnd - rankStart == 0) return -1; //patern not found
         // int letterPos = alphabet.select(1, c);
         // if (letterPos != c) cout << "ERROR2 : " << letterPos << " : " << c << endl;
@@ -143,31 +146,28 @@ void backwardsSearchBWT::getRange(int c, int& rangeStart, int& rangeEnd){
 void backwardsSearchBWT::neighborExpansion(vector<int> xy, int index, int rangeStart, int rangeEnd, vector<pair<int, int>>& ranges){//size should be over or equal to 2
     int newRangeStart, newRangeEnd;
     if (index == xy.size()){
-        
         ranges.push_back(make_pair(rangeStart, rangeEnd));
        
         return;
     }else{
         if (xy[index] == -2){
-            
             uint64_t quantity = 0;
             std::vector<uint64_t> cs(L.sigma);      // list of characters in the interval
             std::vector<uint64_t> rank_c_i(L.sigma);    // number of occurrence of character in [0 .. i-1]
             std::vector<uint64_t> rank_c_j(L.sigma);    // number of occurrence of character in [0 .. j-1]
-            if (rangeStart >= 0 || rangeEnd >= 0) interval_symbols(L, rangeStart, rangeEnd + 1, quantity, cs, rank_c_i, rank_c_j);
-
             
-            for (int it = quantity - 1; it > -1; it--){
+	    if (rangeStart >= 0 || rangeEnd >= 0) interval_symbols(L, rangeStart, rangeEnd + 1, quantity, cs, rank_c_i, rank_c_j);
+	    
+	    for (int it = quantity - 1; it > -1; it--){
                 if (cs[it] == sigma_seperator){ continue; }
                 xy[index] = cs[it]; //mapIt->first;
-                
                 if (search(cs[it] /*mapIt->first*/, rangeStart, rangeEnd, newRangeStart, newRangeEnd) == -1) {/*cout << "NOT FOUND" << endl;*/ return;}
-                
                 neighborExpansion(xy, index + 1, newRangeStart, newRangeEnd, ranges);
             }
         }else{
             if (search(xy[index], rangeStart, rangeEnd, newRangeStart, newRangeEnd) == -1) {/*cout << "NOT FOUND" << endl;*/ return;}
-            rangeStart = newRangeStart;
+            
+	    rangeStart = newRangeStart;
             rangeEnd = newRangeEnd;
             if (index == xy.size() - 1)  {
                 ranges.push_back(make_pair(newRangeStart, newRangeEnd));

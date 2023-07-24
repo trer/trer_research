@@ -48,9 +48,9 @@ cd build # change into the build directory
 if [ $? != 0 ]; then
 	exit 1
 fi
-./clean.sh # clean-up build directory
+sh ./clean.sh
 if [ $? != 0 ]; then
-	exit 1
+        exit 1
 fi
 
 cmake -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_INSTALL_PREFIX="${SDSL_INSTALL_PREFIX}" .. # run cmake 

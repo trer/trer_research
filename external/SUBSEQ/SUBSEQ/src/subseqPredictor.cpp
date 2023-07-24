@@ -51,7 +51,7 @@ void subseqPredictor::predict(int* query, int size, int maxPredictionCount, int 
 	vector<pair<int, int>> bs_ranges;
 	vector<pair<int, int>> exclude_bs_ranges;
 	if (query[0] == -2){
-		
+			
 		vector<int> exclude_query_vector(size);
 		copy(query, query + size, exclude_query_vector.begin());
 
@@ -101,11 +101,12 @@ void subseqPredictor::predict(int* query, int size, int maxPredictionCount, int 
 
 
 		vector<vector<int>> consequentList;
-	    //cout << " : Ranges : " << bs_ranges.size() << endl;
+	    
 	    for (pair<int, int> it : bs_ranges){
 	    	vector<int> tmp;
 	    	//bSBWT->getConsequents(tmp, 0, it.first, it.second, 2, -1, consequentList, predictionCount, consequentBits);
-	    	bSBWT->getQuickConsequents_noLplus(it.first, it.second, consequentList, predictionCount, consequentBits);
+	    	
+		bSBWT->getQuickConsequents_noLplus(it.first, it.second, consequentList, predictionCount, consequentBits);
 	    }
 	    //put all ranges into CT
 	    for (vector<int> consequent : consequentList) push(consequent, errors, initialLength, size);
@@ -115,32 +116,39 @@ void subseqPredictor::predict(int* query, int size, int maxPredictionCount, int 
 	    	return;
 		}
 	}else{
+		
 		vector<int> query_vector(size);
 		copy(query, query + size, query_vector.begin());
 	    if (errors > 0){
+		
 	    	bSBWT->getRange(query[0], rangeStart, rangeEnd);
+		
 	    	if (rangeStart != -1 && rangeEnd != -1){
 	    		if (cashed_ranges[query_vector].size() == 0){
+				
 	    			bSBWT->neighborExpansion(query_vector, 1, rangeStart, rangeEnd, bs_ranges);
 	    			cashed_ranges[query_vector] = bs_ranges;
+				
 	    		}else{
 	    			bs_ranges = cashed_ranges[query_vector];
 	    		}
 	    	}
 	    }else{
 
-	 
+	 	
 	    	int finalStartRange, finalEndRange;
 	    	if (bSBWT->searchQuery(query, size, finalStartRange, finalEndRange) != -1){
+			
 	    		bs_ranges.push_back(make_pair(finalStartRange, finalEndRange));
 	    	}
 	    }
-	    //cout << ": Ranges : " << bs_ranges.size() << endl;
+	    
 	    vector<vector<int>> consequentList;
 	    for (pair<int, int> it : bs_ranges){
 	    	vector<int> tmp;
 	    	//bSBWT->getConsequents(tmp, 0, it.first, it.second, 2, -1, consequentList, predictionCount, consequentBits);
-	    	bSBWT->getQuickConsequents_noLplus(it.first, it.second, consequentList, predictionCount, consequentBits);
+	    	
+		bSBWT->getQuickConsequents_noLplus(it.first, it.second, consequentList, predictionCount, consequentBits);
 	    }
 	    //put all ranges into CT
 	    for (vector<int> consequent : consequentList) push(consequent, errors, initialLength, size);
@@ -151,7 +159,7 @@ void subseqPredictor::predict(int* query, int size, int maxPredictionCount, int 
 		}
 	}
 
-	
+    
     return;
 }
 
