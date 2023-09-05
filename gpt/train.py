@@ -31,9 +31,9 @@ else:
     data_test_size = 0
     model_name = 'webtextCPU'
     try:
-        d = pd.read_csv('../data/aalphabet.csv')['d']
+        d = pd.read_csv('../data/alphabet.csv')['d']
     except:
-        print("reading data\n")
+        print("alphabeth not found, creating from data\n")
         data = []
         for i, line in enumerate(open(os.getcwd() + '/../external/gpt-2-output-dataset/data/webtext.train.jsonl')):
             data.append(json.loads(line)['text'])

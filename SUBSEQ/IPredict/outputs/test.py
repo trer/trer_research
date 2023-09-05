@@ -1,6 +1,6 @@
 import pandas as pd
 
-dataset = pd.read_csv('../../../../data/tiny_shakespeare.csv')
+dataset = pd.read_csv('../../../data/tiny_shakespeare.csv')
 
 data = dataset['train'][0]
 
