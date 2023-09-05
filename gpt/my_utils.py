@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 class GptDataset(Dataset):
     'Characterizes a dataset for PyTorch'
 
-    def __init__(self, dataset_path, block_size, batch_size, encode, decode, device):
+    def __init__(self, dataset_path, block_size, batch_size, encode, decode, device, subset=1):
         'Initialization'
         self.dataset_path = dataset_path
         self.block_size = block_size
@@ -25,6 +25,7 @@ class GptDataset(Dataset):
         with open(dataset_path, 'r') as fl:
             for i, line in enumerate(fl):
                 self.len = i + 1
+        self.len = int(self.len * subset)
         print(self.len)
 
         self.f = open(dataset_path, 'r')

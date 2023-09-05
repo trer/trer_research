@@ -12,8 +12,8 @@ from my_utils import GptDataset
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(device)
 
-TINYSHAKESPEARE = True
-WEBTEXT = False
+TINYSHAKESPEARE = False
+WEBTEXT = True
 
 if TINYSHAKESPEARE:
     model_name = 'tinyShakespeare'
@@ -29,7 +29,7 @@ else:
     dataset_size = 0
     data_test = []
     data_test_size = 0
-    model_name = 'webtext'
+    model_name = 'webtextCPU'
     try:
         d = pd.read_csv('../data/aalphabet.csv')['d']
     except:
@@ -81,9 +81,9 @@ if large:
     dropout = 0.2
     filename = f'models/{model_name}model_large.pt'
 else:
-    block_size = 8  # This is around 2000 in GPT
-    batch_size = 2
-    embedding_size = 16
+    block_size = 32  # This is around 2000 in GPT
+    batch_size = 1
+    embedding_size = 64
     n_heads = 4
     n_multiheads = 1
     
@@ -135,7 +135,7 @@ print(loss_est)
 
 print("starting time")
 t1 = t.time()
-for epoch in range(0):
+for epoch in range(epochs):
     if TINYSHAKESPEARE:
         x, y = get_batch(data, device, dataset_size, block_size, batch_size)
     else:
@@ -171,7 +171,7 @@ t2 = t.time()
 print("end of training time", t2-t1)
 if WEBTEXT:
     gpt_dataset.f.close()
-del gpt_dataset
+    del gpt_dataset
 del optimizer
 
 
